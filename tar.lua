@@ -5,7 +5,6 @@ local tar = {}
 
 local fs = require("luarocks.fs")
 local dir = require("luarocks.dir")
-local util = require("luarocks.util")
 
 local blocksize = 512
 
@@ -99,7 +98,7 @@ function tar.untar(filename, destdir)
 		if not block then break end
 		local header, err = read_header_block(block)
 		if not header then
-			util.printerr(err)
+			error(err, 2)
 		end
 
 		local file_data = tar_handle:read(math.ceil(header.size / blocksize) * blocksize):sub(1,header.size)
@@ -137,6 +136,7 @@ function tar.untar(filename, destdir)
 			end
 		end
 		--[[
+		local util = require("luarocks.util")
 		for k,v in pairs(header) do
 			util.printout("[\""..tostring(k).."\"] = "..(type(v)=="number" and v or "\""..v:gsub("%z", "\\0").."\""))
 		end
