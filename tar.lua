@@ -3,9 +3,6 @@
 --module("luarocks.tools.tar", package.seeall)
 local tar = {}
 
-local fs = require("luarocks.fs")
-local dir = require("luarocks.dir")
-
 local blocksize = 512
 
 local function get_typeflag(flag)
@@ -83,17 +80,12 @@ local function read_header_block(block)
 	return header
 end
 
-function tar.untar(filename, destdir)
-	assert(type(filename) == "string")
-	assert(type(destdir) == "string")
-
-	local tar_handle = io.open(filename, "r")
-	if not tar_handle then return nil, "Error opening file "..filename end
-	
+local function tarstream(tar_handle, handle)
+	assert(handle)
 	local long_name, long_link_name
 	while true do
 		local block
-		repeat 
+		repeat
 			block = tar_handle:read(blocksize)
 		until (not block) or checksum_header(block) > 256
 		if not block then break end
@@ -118,6 +110,30 @@ function tar.untar(filename, destdir)
 				long_link_name = nil
 			end
 		end
+
+		handle(header)
+
+		--[[
+		local util = require("luarocks.util")
+		for k,v in pairs(header) do
+			util.printout("[\""..tostring(k).."\"] = "..(type(v)=="number" and v or "\""..v:gsub("%z", "\\0").."\""))
+		end
+		util.printout()
+		--]]
+	end
+	return true
+end
+
+if false then
+
+local fs = require("luarocks.fs")
+--fs.make_dir
+--fs.set_time
+--fs.chmod
+--io.open
+local dir = require("luarocks.dir")
+
+local function write_to_fs(header, destdir)
 		local pathname = dir.path(destdir, header.name)
 		if header.typeflag == "directory" then
 			local ok, err = fs.make_dir(pathname)
@@ -136,15 +152,126 @@ function tar.untar(filename, destdir)
 				fs.chmod(pathname, header.mode)
 			end
 		end
-		--[[
-		local util = require("luarocks.util")
-		for k,v in pairs(header) do
-			util.printout("[\""..tostring(k).."\"] = "..(type(v)=="number" and v or "\""..v:gsub("%z", "\\0").."\""))
-		end
-		util.printout()
-		--]]
-	end
-	return true
 end
+
+
+function tar.untar(filename, destdir)
+	assert(type(filename) == "string")
+	assert(type(destdir) == "string")
+
+	local tar_handle = io.open(filename, "r")
+	if not tar_handle then return nil, "Error opening file "..filename end
+	local action = function(header)
+		return write_to_fs(header, destdir)
+	end
+	tarstream(tar_handle, action)
+	tar_handle:close()
+end
+end -- if
+
+local function write_to_fs(header, destdir)
+		local pathname = dir.path(destdir, header.name)
+		if header.typeflag == "directory" then
+			local ok, err = fs.make_dir(pathname)
+			if not ok then return nil, err end
+		elseif header.typeflag == "file" then
+			local dirname = dir.dir_name(pathname)
+			if dirname ~= "" then
+				local ok, err = fs.make_dir(dirname)
+				if not ok then return nil, err end
+			end
+			local file_handle = io.open(pathname, "wb")
+			file_handle:write(file_data)
+			file_handle:close()
+			fs.set_time(pathname, header.mtime)
+			if fs.chmod then
+				fs.chmod(pathname, header.mode)
+			end
+		end
+end
+local floor = math.floor
+local function num2str(n)
+        n = floor(n)
+        if n < 0 or n > 512 then
+                return nil
+        end
+        local a = floor(n/64) % 8
+        local b = floor(n/8) % 8
+        local c = floor(n) % 8
+        if a % 8 ~= a or b % 8 ~= b or c % 8 ~= c then
+                return nil
+        end
+        local conv = {
+                [0] = "---",
+                [1] = "--x",
+                [2] = "-w-",
+                [3] = "-wx",
+                [4] = "r--",
+                [5] = "r-x",
+                [6] = "rw-",
+                [7] = "rwx",
+        }
+        return conv[a]..conv[b]..conv[c]
+end
+
+local function show_the_file(header, destdir)
+	local fmt = "%10s %s/%s %5s %s %s"
+	local fmode = function(mode)
+		return num2str(tonumber(mode, 8))
+	end
+	local unixtime2txt = function(u)
+		return os.date("%Y-%m-%d %H:%M", u)
+	end
+	if header.typeflag == "file" then
+		print( fmt:format(
+			"-"..tostring(fmode(header.mode)),
+			header.uname,
+			header.gname,
+			header.size,
+			unixtime2txt(header.mtime),
+			header.name
+		))
+	elseif header.typeflag == "directory" then
+		print( fmt:format(
+			"d"..tostring(fmode(header.mode)),
+			header.uname,
+			header.gname,
+			header.size,
+			unixtime2txt(header.mtime),
+			header.name
+		))
+	elseif header.typeflag == "symlink" then
+		print( (fmt .. " -> %s"):format(
+			"l"..tostring(fmode(header.mode)),
+			header.uname,
+			header.gname,
+			header.size,
+			unixtime2txt(header.mtime),
+			header.name,
+			header.linkname
+		))
+	else
+		for k,v in pairs(header) do
+			print("[\""..tostring(k).."\"] = "..(type(v)=="number" and v or "\""..v:gsub("%z", "\\0").."\""))
+		end
+		print("")
+	end
+end
+
+function tar.untar(filename, destdir)
+	assert(type(filename) == "string")
+	--assert(type(destdir) == "string")
+
+	local tar_handle = io.open(filename, "r")
+	if not tar_handle then return nil, "Error opening file "..filename end
+	local action = function(header)
+		return show_the_file(header, destdir)
+	end
+	tarstream(tar_handle, action)
+	tar_handle:close()
+end
+
+tar.tarstream = tarstream
+tar.show_the_file = show_the_file
 
 return tar
