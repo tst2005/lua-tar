@@ -85,7 +85,7 @@ local function tarstream(tar_handle, handle)
 	local long_name, long_link_name
 	while true do
 		local block
-		repeat 
+		repeat
 			block = tar_handle:read(blocksize)
 		until (not block) or checksum_header(block) > 256
 		if not block then break end
@@ -215,6 +215,7 @@ local function num2str(n)
 end
 
 local function show_the_file(header, destdir)
+	local fmt = "%10s %s/%s %5s %s %s"
 	local fmode = function(mode)
 		return num2str(tonumber(mode, 8))
 	end
@@ -222,7 +223,7 @@ local function show_the_file(header, destdir)
 		return os.date("%Y-%m-%d %H:%M", u)
 	end
 	if header.typeflag == "file" then
-		print( ("%10s %s %s %5s %s %s"):format(
+		print( fmt:format(
 			"-"..tostring(fmode(header.mode)),
 			header.uname,
 			header.gname,
@@ -231,7 +232,7 @@ local function show_the_file(header, destdir)
 			header.name
 		))
 	elseif header.typeflag == "directory" then
-		print( ("%10s %s %s %5s %s %s"):format(
+		print( fmt:format(
 			"d"..tostring(fmode(header.mode)),
 			header.uname,
 			header.gname,
@@ -240,7 +241,7 @@ local function show_the_file(header, destdir)
 			header.name
 		))
 	elseif header.typeflag == "symlink" then
-		print( ("%10s %s %s %5s %s %s -> %s"):format(
+		print( (fmt .. " -> %s"):format(
 			"l"..tostring(fmode(header.mode)),
 			header.uname,
 			header.gname,
@@ -257,7 +258,7 @@ local function show_the_file(header, destdir)
 	end
 end
 
-function tar.untarstream(filename, destdir)
+function tar.untar(filename, destdir)
 	assert(type(filename) == "string")
 	--assert(type(destdir) == "string")
 
@@ -270,5 +271,7 @@ function tar.untarstream(filename, destdir)
 	tar_handle:close()
 end
 
+tar.tarstream = tarstream
+tar.show_the_file = show_the_file
 
 return tar

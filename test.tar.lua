@@ -1,3 +1,9 @@
-local untarstream = require "tar".untarstream
+local tar = require "tar"
 
-print(untarstream("data.tar"))
+local tarball = arg[1] or "sample/data.tar"
+
+local function untarstream(x)
+	return tar.tarstream(x, tar.show_the_file)
+end
+
+tar.untar(tarball)
