@@ -26,7 +26,7 @@ local function octal_to_number(octal)
 	local exp = 0
 	local number = 0
 	for i = #octal,1,-1 do
-		local digit = tonumber(octal:sub(i,i)) 
+		local digit = tonumber(octal:sub(i,i))
 		if digit then
 			number = number + (digit * 8^exp)
 			exp = exp + 1
@@ -51,23 +51,23 @@ local function nullterm(s)
 end
 
 local function read_header_block(block)
-	local header = {}
-	header.name = nullterm(block:sub(1,100))
-	header.mode = nullterm(block:sub(101,108))
-	header.uid = octal_to_number(nullterm(block:sub(109,116)))
-	header.gid = octal_to_number(nullterm(block:sub(117,124)))
-	header.size = octal_to_number(nullterm(block:sub(125,136)))
-	header.mtime = octal_to_number(nullterm(block:sub(137,148)))
-	header.chksum = octal_to_number(nullterm(block:sub(149,156)))
-	header.typeflag = get_typeflag(block:sub(157,157))
-	header.linkname = nullterm(block:sub(158,257))
-	header.magic = block:sub(258,263)
-	header.version = block:sub(264,265)
-	header.uname = nullterm(block:sub(266,297))
-	header.gname = nullterm(block:sub(298,329))
-	header.devmajor = octal_to_number(nullterm(block:sub(330,337)))
-	header.devminor = octal_to_number(nullterm(block:sub(338,345)))
-	header.prefix = block:sub(346,500)
+	local header = {}							-- SIZE
+	header.name		= nullterm(block:sub(1,100))			-- 100
+	header.mode		= nullterm(block:sub(101,108))			-- 8
+	header.uid		= octal_to_number(nullterm(block:sub(109,116)))	-- 16
+	header.gid		= octal_to_number(nullterm(block:sub(117,124)))	-- 8
+	header.size		= octal_to_number(nullterm(block:sub(125,136)))	-- 12
+	header.mtime		= octal_to_number(nullterm(block:sub(137,148)))	-- 12
+	header.chksum		= octal_to_number(nullterm(block:sub(149,156)))	-- 8
+	header.typeflag		= get_typeflag(block:sub(157,157))		-- 1
+	header.linkname		= nullterm(block:sub(158,257))			-- 100
+	header.magic		= block:sub(258,263)				-- 6
+	header.version		= block:sub(264,265)				-- 2
+	header.uname		= nullterm(block:sub(266,297))			-- 32
+	header.gname		= nullterm(block:sub(298,329))			-- 32
+	header.devmajor		= octal_to_number(nullterm(block:sub(330,337)))	-- 8
+	header.devminor		= octal_to_number(nullterm(block:sub(338,345)))	-- 8
+	header.prefix		= block:sub(346,500)				-- 155
 	if header.magic ~= "ustar " and header.magic ~= "ustar\0" then
 		return false, "Invalid header magic "..header.magic
 	end
@@ -252,11 +252,37 @@ local function show_the_file(header, destdir)
 		))
 	else
 		for k,v in pairs(header) do
-			print("[\""..tostring(k).."\"] = "..(type(v)=="number" and v or "\""..v:gsub("%z", "\\0").."\""))
+			if k ~= "prefix" then
+				print("[\""..tostring(k).."\"] = "..(type(v)=="number" and v or "\""..v:gsub("%z", "\\0").."\""))
+			end
 		end
 		print("")
 	end
 end
+
+local function show_the_file(header, destdir)
+print( ("%-99s"):format(header.name),
+("%s=%s "):rep(4):format(
+"mode", header.mode     ,
+--"user", header.uname.."/"..header.uid      ,
+--"group", header.gname.."/"..header.gid      ,
+"size", header.size     ,
+--header.mtime    ,
+"sum", ("0x%x"):format( header.chksum )  ,
+"type", header.typeflag:gsub(" ","_") ,
+--header.linkname ,
+--header.magic    ,
+--header.version  ,
+--header.uname    ,
+--header.gname    ,
+--header.devmajor ,
+--header.devminor ,
+--header.prefix,
+""
+)
+)
+end
+
 
 function tar.untar(filename, destdir)
 	assert(type(filename) == "string")
