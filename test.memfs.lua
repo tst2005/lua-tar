@@ -25,3 +25,6 @@ end
 end
 end
 
+local p = "/a/../../../b"
+print( p, fs:cleanpath(p) )
+

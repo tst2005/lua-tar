@@ -53,16 +53,16 @@ function fs:cleanpath(path)
 	assert(sep == "/", "separator is not supported")
 	return (
 		path
-		:gsub("^$", ".")
-		:gsub("/+", "/")
-		:gsub("/$", "")
-		:gsub("$", "/")
+		:gsub("^$", ".")		-- if empty returns "."
+		:gsub("/+", "/")		-- remove multiple '/' occurrence
+		:gsub("/$", "")			-- remove ending '/' if exists
+		:gsub("$", "/")			-- add ending '/'
 		:gsub("/%./", "/")
-		:gsub("^", "/")
-			:gsub("/[^/]+/%.%./", "/")
-		:gsub("^/", "")
-		:gsub("^(.+)/$", "%1")
-		:gsub("^%./(.+)$", "%1")
+--			:gsub("^", "/")			-- prefix by '/'
+--			:gsub("/[^/]+/%.%./", "/")	-- reduce "/something/.." to "/"
+--			:gsub("^/", "")			-- remove the '/' prefix
+		:gsub("^(.+)/$", "%1")		-- remove the last ending '/' if exists
+		:gsub("^%./(.+)$", "%1")	-- if "./something" keep "something"
 	)
 end
 function fs:exists(path)
