@@ -7,19 +7,14 @@ local instance = assert(class.instance)
 local parentdir_is_myself = {} -- uniq value to bootstrap root directory
 
 local dir = class("dir", {
-	init = function(self, parentdir)
---		assert(parentdir, "missing parent directory object")
+	init = function(self)
 		self.hardcount = 1
 		self.tree = {}
-		self:hardlink(".", self) 				-- self["."]  = self
+		self:hardlink(".", self)
 		if parentdir == parentdir_is_myself then
-			--						-- self[""]   = self
-			self:hardlink("..", self)			-- self[".."] = self
---		else
---			self:hardlink("..", parendir)			-- self[".."] = parentdir
+			self:hardlink("..", self)
 		end
 		--require "mini.class.autometa"(self, dirmt)
---		assert(tree[".."])
 		return tree -- the instance returns self, tree
 	end
 })
@@ -33,13 +28,13 @@ end
 function dir:hardlink(name, what)
 	if not self.tree[name] then
 		self.tree[name] = what
-		what:_hardlinkcount(1)
+		what.hardcount = what.hardcount +1
 	end
 end
 
 function dir:unhardlink(name)
 	if self[name] then
-		self[name]:_hardlinkcount(-1)
+		self[name].hardcount = self[name].hardcount -1
 		self[name]=nil
 	end
 end
