@@ -54,4 +54,18 @@ function dir:mkdir(name)
 	return d
 end
 
+function dir:rmdir(name)
+	if not self.tree[name] then
+		error("not exists", 2)
+	end
+	self.tree[name] = nil
+	return nil
+end
+
+function dir:all(f, ...)
+	for k,v in pairs(self.tree) do
+		f(k,v, ...)
+	end
+end
+
 return setmetatable({ROOTFS=parentdir_is_myself}, {__call = function(_, ...) return instance(dir, ...) end})
