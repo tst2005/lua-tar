@@ -9,13 +9,64 @@ local class = require "mini.class"
 local instance = assert(class.instance)
 local fs = class("fs", {})
 
+local parentdir_is_myself = {} -- uniq value to bootstrap root directory
+
+local dir = class("dir", {
+	init = function(self, parentdir)
+		assert(parentdir)
+
+		local mt = getmetatable(self)
+		if not mt then mt={} setmetatable(self, mt) end
+		mt.hardcount = 1
+
+		self:hardlink(".", self)
+		--self["."] = self
+		if parentdir == parentdir_is_myself then
+			--self[".."] = self
+			--self[""]   = self
+			self:hardlink("..", self)
+		else
+			self:hardlink("..", parendir)
+			--self[".."] = parentdir
+		end
+		--require "mini.class.autometa"(self, dirmt)
+	end
+})
+
 function fs:init(hand)
---	local data = {};self.data = data;local self = data
 	self.sep = '/'
-	self.inode2file = {} -- [inode] = (obj)file
-	self.path2file  = {} -- [path] = (obj)file
+	self.rootdir = instance(dir, parentdir_is_myself)
+
+--	self.inode2file = {} -- [inode] = (obj)file
+--	self.path2file  = {} -- [path] = (obj)file
 	--self.file2paths (1 or N for hardlinks)
 end
+
+function fs:hardlinkcount(incr)
+	getmetatable(self).hardcount = getmetatable(self).hardcount + incr
+end
+
+-- create a hardlink of <what> named <name> into <self>
+function fs:hardlink(name, what)
+	if not self[name] then
+		self[name] = what
+		what:hardlinkcount(1)
+	end
+end
+
+function fs:unhardlink(name)
+	if self[name] then
+		self[name]:hardlinkcount(-1)
+		self[name]=nil
+	end
+end
+
+function fs:mkdir(pwd, name)
+	
+end
+
+local split = require "mini.string.split"
+
 
 local function read_header_block(block)
 	local funcs = {}										    -- SIZE
@@ -65,6 +116,10 @@ function fs:cleanpath(path)
 		:gsub("^%./(.+)$", "%1")	-- if "./something" keep "something"
 	)
 end
+function fs:pathsplit(pathstr)
+	return split(pathstr, "/")
+end
+
 function fs:exists(path)
 	return bool(self.path2file[self:cleanpath(path)])
 end
