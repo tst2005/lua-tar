@@ -1,28 +1,20 @@
 
--- dir.tree[name].tree[name]
+-- dir.tree[name1].tree[name2]
+-- dir(name1)(name2)
 
 local class = require "mini.class"
 local instance = assert(class.instance)
 
-local parentdir_is_myself = {} -- uniq value to bootstrap root directory
-
-local dir = class("dir", {
-	init = function(self)
+local dir;dir = class("dir", {
+	init = function(self, parentdir)
+		assert(parentdir)
 		self.hardcount = 1
 		self.tree = {}
 		self:hardlink(".", self)
-		if parentdir == parentdir_is_myself then
-			self:hardlink("..", self)
-		end
-		--require "mini.class.autometa"(self, dirmt)
-		return tree -- the instance returns self, tree
+		self:hardlink("..", parentdir==true and self or parentdir)
+		require "mini.class.autometa"(self, dir)
 	end
 })
-
-function dir:_hardlinkcount(incr)
-	assert(incr == 1 or incr == -1)
-	self.hardcount = self.hardcount + incr
-end
 
 -- create a hardlink of <what> named <name> into <self>
 function dir:hardlink(name, what)
@@ -43,8 +35,7 @@ function dir:mkdir(name)
 	if self.tree[name] then
 		error("already exists", 2)
 	end
-	local d = dir()
-	d:hardlink("..", self)
+	local d = dir(self)
 	self.tree[name] = d
 	return d
 end
@@ -53,14 +44,38 @@ function dir:rmdir(name)
 	if not self.tree[name] then
 		error("not exists", 2)
 	end
+	self.tree[name]:destroy()
 	self.tree[name] = nil
 	return nil
 end
 
+function dir:destroy() -- __gc ?
+	self:unhardlink("..")
+	self:unhardlink(".")
+end
+
 function dir:all(f, ...)
+	if self.tree["."] then
+		f(".", self.tree["."], ...)
+	end
+	if self.tree[".."] then
+		f("..", self.tree[".."], ...)
+	end
 	for k,v in pairs(self.tree) do
-		f(k,v, ...)
+		if k~="." and k~=".." then
+			f(k, v, ...)
+		end
 	end
 end
 
-return setmetatable({ROOTFS=parentdir_is_myself}, {__call = function(_, ...) return instance(dir, ...) end})
+function dir:__call(name)
+	assert(type(name)=="string", "something wrong")
+	assert(not name:find("/"), "path not supported yet, only direct name")
+	return self.tree[name]
+end
+
+function dir:__pairs()
+	return pairs(self.tree)
+end
+
+return setmetatable({}, {__call = function(_, ...) return instance(dir, ...) end})
